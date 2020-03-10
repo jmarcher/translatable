@@ -229,7 +229,7 @@ trait Translatable
             $this->initTranslatableAttributes();
         }
         if (isset($attributes['translations'])) {
-            $attributes = array_except($attributes, $this->translatableAttributes());
+            $attributes = \Illuminate\Support\Arr::except($attributes, $this->translatableAttributes());
         }
         return parent::fill($attributes);
     }
