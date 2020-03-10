@@ -6,10 +6,11 @@ class TestCRUD extends IntegrationTestCase
     {
         User::forceCreate([
             'name' => 'John Doe',
-            'bio' => 'Lorem ipsum'
+            'bio'  => 'Lorem ipsum',
         ]);
 
         $user = User::first();
+
         $this->assertEquals('John Doe', $user->name);
         $this->assertEquals('Lorem ipsum', $user->bio);
     }
@@ -18,18 +19,20 @@ class TestCRUD extends IntegrationTestCase
     {
         $user = User::forceCreate([
             'name' => 'John Doe',
-            'bio'  => 'Lorem ipsum'
+            'bio'  => 'Lorem ipsum',
         ]);
 
         $user->forceSaveTranslation('de', [
-            'bio' => 'DE Lorem ipsum'
+            'bio' => 'DE Lorem ipsum',
         ]);
 
         $user = User::first();
+
         $this->assertEquals('John Doe', $user->name);
         $this->assertEquals('Lorem ipsum', $user->bio);
 
         $user = User::translateInto('de')->first();
+
         $this->assertEquals('John Doe', $user->name);
         $this->assertEquals('DE Lorem ipsum', $user->bio);
     }
@@ -37,7 +40,7 @@ class TestCRUD extends IntegrationTestCase
     public function testModelWithIdenticalTranslationsIsSaved()
     {
         User::forceCreate([
-            'name' => 'John Doe'
+            'name' => 'John Doe',
         ], [
             'en' => ['bio' => 'Sample bio'],
             'de' => ['bio' => 'Sample bio'],
@@ -51,10 +54,11 @@ class TestCRUD extends IntegrationTestCase
     {
         User::forceCreate([
             'name' => 'John Doe',
-            'bio' => 'Lorem ipsum'
+            'bio'  => 'Lorem ipsum',
         ]);
 
         $user = User::translateInto('de')->first();
+
         $this->assertEquals('John Doe', $user->name);
         $this->assertEquals('Lorem ipsum', $user->bio);
     }
@@ -63,10 +67,11 @@ class TestCRUD extends IntegrationTestCase
     {
         User::forceCreate([
             'name' => 'John Doe',
-            'bio' => 'Lorem ipsum'
+            'bio'  => 'Lorem ipsum',
         ]);
 
         $user = User::translateInto('de')->withoutFallback()->first();
+
         $this->assertEquals('John Doe', $user->name);
         $this->assertNull($user->bio);
     }
@@ -75,7 +80,7 @@ class TestCRUD extends IntegrationTestCase
     {
         $user = User::forceCreate([
             'name' => 'John Doe',
-            'bio' => 'Lorem ipsum'
+            'bio'  => 'Lorem ipsum',
         ]);
 
         $user->name = 'Jane Doe';
@@ -85,6 +90,7 @@ class TestCRUD extends IntegrationTestCase
         $user->save();
 
         $user = $user->first();
+
         $this->assertEquals('Jane Doe', $user->name);
         $this->assertEquals('Lorem ipsum 2', $user->bio);
 
@@ -93,24 +99,114 @@ class TestCRUD extends IntegrationTestCase
         $user->save();
 
         $user = $user->first();
+
         $this->assertEquals('John Doe', $user->name);
         $this->assertEquals('Lorem ipsum', $user->bio);
+    }
+
+    public function testModelCanBeMassUpdated()
+    {
+        Post::forceCreate([
+            'id'    => 1,
+            'title' => 'Lorem ipsum',
+        ]);
+
+        Post::forceCreate([
+            'id'    => 2,
+            'title' => 'Lorem ipsum',
+        ]);
+
+        Post::where('title', 'Lorem ipsum')->update([
+            'title' => 'Lorem ipsum 2',
+        ]);
+
+        $this->assertEquals('Lorem ipsum 2', Post::find(1)->title);
+        $this->assertEquals('Lorem ipsum 2', Post::find(2)->title);
     }
 
     public function testSaveTranslationHelper()
     {
         User::forceCreate([
             'name' => 'John Doe',
-            'bio' => 'Lorem ipsum'
+            'bio'  => 'Lorem ipsum',
         ]);
 
         $user = User::first();
+
         $user->forceSaveTranslation('de', ['bio' => 'Lorem ipsum DE']);
         $user->forceSaveTranslation('fr', ['bio' => 'Lorem ipsum FR']);
 
         $this->assertEquals('Lorem ipsum', User::translateInto('en')->first()->bio);
         $this->assertEquals('Lorem ipsum DE', User::translateInto('de')->first()->bio);
         $this->assertEquals('Lorem ipsum FR', User::translateInto('fr')->first()->bio);
+    }
+
+    public function testSaveTranslationWithoutSideEffectsWhenUseFillable()
+    {
+        Post::forceCreate([]);
+
+        $post = Post::first();
+
+        $post->saveTranslation('de', ['title' => 'Title DE']);
+        $post->title = 'Title EN';
+        $post->body = 'Body EN';
+        $post->save();
+        $post->saveTranslation('de', ['body' => 'Body DE']);
+
+        $this->assertEquals('Title EN', Post::translateInto('en')->first()->title);
+        $this->assertEquals('Body EN', Post::translateInto('en')->first()->body);
+        $this->assertEquals('Title DE', Post::translateInto('de')->first()->title);
+        $this->assertEquals('Body DE', Post::translateInto('de')->first()->body);
+    }
+
+    public function testSaveTranslationWithoutSideEffectsDependingOrderOperations()
+    {
+        Post::forceCreate([]);
+
+        $post = Post::first();
+
+        $post->forceSaveTranslation('de', ['title' => 'Title DE']);
+        $post->forceSaveTranslation('fr', ['title' => 'Title FR']);
+        $post->forceSaveTranslation('de', ['body' => 'Body DE']);
+        $post->forceSaveTranslation('fr', ['body' => 'Body FR']);
+
+        $this->assertEquals('Title DE', Post::translateInto('de')->first()->title);
+        $this->assertEquals('Body DE', Post::translateInto('de')->first()->body);
+        $this->assertEquals('Title FR', Post::translateInto('fr')->first()->title);
+        $this->assertEquals('Body FR', Post::translateInto('fr')->first()->body);
+    }
+
+    public function testSaveTranslationWithoutSideEffectsWhenUpdateModel()
+    {
+        Post::forceCreate([]);
+
+        $post = Post::first();
+
+        $post->forceSaveTranslation('en', [
+            'title' => 'Title EN v2',
+            'body'  => 'Body EN v2',
+        ]);
+
+        $post->forceSaveTranslation('de', [
+            'title' => 'Title DE v2',
+            'body'  => 'Body DE v2',
+        ]);
+
+        $post->forceFill(['image' => 'blog_cover.png'])->save();
+
+        $this->assertEquals('Title DE v2', Post::translateInto('de')->first()->title);
+        $this->assertEquals('Body DE v2', Post::translateInto('de')->first()->body);
+        $this->assertEquals('Title EN v2', Post::translateInto('en')->first()->title);
+        $this->assertEquals('Body EN v2', Post::translateInto('en')->first()->body);
+        $this->assertEquals('blog_cover.png', Post::first()->image);
+    }
+
+    public function testFreshReturnsTranslations()
+    {
+        $post = Post::forceCreate(['title' => 'Title 1']);
+
+        $post->title = 'Changed';
+        $this->assertEquals('Title 1', $post->fresh()->title);
     }
 
     public function testWhereTranslated()
@@ -123,8 +219,8 @@ class TestCRUD extends IntegrationTestCase
 
     public function testWhereTranslatedWithFallback()
     {
-        Post::forceCreateInLocale('de', ['title'  => 'Title']);
-        Post::forceCreateInLocale('en', ['title'  => 'Title']);
+        Post::forceCreateInLocale('de', ['title' => 'Title']);
+        Post::forceCreateInLocale('en', ['title' => 'Title']);
 
         $queryWithFallback = Post::translateInto('de')->where('title', 'Title');
         $queryWithoutFallback = Post::translateInto('de')->withoutFallback()->where('title', 'Title');
@@ -135,8 +231,8 @@ class TestCRUD extends IntegrationTestCase
 
     public function testWhereTranslatedWithArray()
     {
-        Post::forceCreateInLocale('de', ['title'  => 'Title']);
-        Post::forceCreateInLocale('en', ['title'  => 'Title']);
+        Post::forceCreateInLocale('de', ['title' => 'Title']);
+        Post::forceCreateInLocale('en', ['title' => 'Title']);
 
         $result = Post::translateInto('de')->where(['title' => 'Title'])->get();
 
@@ -153,8 +249,8 @@ class TestCRUD extends IntegrationTestCase
 
     public function testOrderByTranslatedWithFallback()
     {
-        Post::forceCreateInLocale('de', ['title'  => 'Title 1']);
-        Post::forceCreateInLocale('en', ['title'  => 'Title 2']);
+        Post::forceCreateInLocale('de', ['title' => 'Title 1']);
+        Post::forceCreateInLocale('en', ['title' => 'Title 2']);
 
         $queryWithFallback = Post::translateInto('de')->orderBy('title', 'desc');
         $queryWithoutFallback = Post::translateInto('de')->withoutFallback()->orderBy('title', 'desc');
@@ -165,11 +261,13 @@ class TestCRUD extends IntegrationTestCase
 
     public function testMacros()
     {
-        $post = Post::forceCreateInLocale('de', ['title'  => 'Title DE']);
-        $post->forceSaveTranslation('en', ['title'  => 'Title EN']);
-        Post::forceCreateInLocale('en', ['title'  => 'Title 2 EN']);
-        Post::forceCreateInLocale('de', ['title'  => 'Title 2 DE']);
-        Post::forceCreate(['id'  => 10]); // no translations
+        $post = Post::forceCreateInLocale('de', ['title' => 'Title DE']);
+
+        $post->forceSaveTranslation('en', ['title' => 'Title EN']);
+
+        Post::forceCreateInLocale('en', ['title' => 'Title 2 EN']);
+        Post::forceCreateInLocale('de', ['title' => 'Title 2 DE']);
+        Post::forceCreate(['id' => 10]); // no translations
 
         $this->assertEquals(4, Post::translateInto('en')->withFallback('de')->withUntranslated()->count());
         $this->assertEquals(3, Post::translateInto('en')->withFallback('de')->onlyTranslated()->count());
@@ -180,9 +278,11 @@ class TestCRUD extends IntegrationTestCase
 
     public function testDelete()
     {
-        $post = Post::forceCreateInLocale('de', ['title'  => 'Title DE']);
-        $post->forceSaveTranslation('en', ['title'  => 'Title EN']);
-        Post::forceCreateInLocale('en', ['title'  => 'Title 2 EN']);
+        $post = Post::forceCreateInLocale('de', ['title' => 'Title DE']);
+
+        $post->forceSaveTranslation('en', ['title' => 'Title EN']);
+
+        Post::forceCreateInLocale('en', ['title' => 'Title 2 EN']);
 
         $post->delete();
 
@@ -190,18 +290,64 @@ class TestCRUD extends IntegrationTestCase
         $this->assertCount(1, Post::i18nQuery()->get());
     }
 
+    public function testDeleteWithoutTranslations()
+    {
+        Post::forceCreate(['title' => 'Title']);
+        Post::i18nQuery()->truncate();
+
+        $post = Post::first();
+
+        $post->delete();
+
+        $this->assertCount(0, Post::all());
+    }
+
     public function testIncrementDecrement()
     {
         $user = User::forceCreate([
             'name' => 'John Doe',
-            'bio' => 'Lorem ipsum ...',
-            'age' => 20
+            'bio'  => 'Lorem ipsum ...',
+            'age'  => 20,
         ]);
 
         $user->increment('age');
+
         $this->assertEquals(21, User::first()->age);
 
         $user->decrement('age');
+
         $this->assertEquals(20, User::first()->age);
+    }
+
+    public function testHasQuery()
+    {
+        $tag1 = Tag::forceCreate(['title' => 'Tag1']);
+        $tag2 = Tag::forceCreate(['title' => 'Tag2']);
+        $tag3 = Tag::forceCreate(['title' => 'Tag2']);
+
+        $tag3->parent_id = $tag1->id;
+        $tag3->save();
+
+        $this->assertCount(1, Tag::has('children')->get());
+    }
+
+    public function testForceDelete()
+    {
+        $user = User::forceCreateInLocale('de', ['name' => 'John Doe', 'bio'  => 'Bio DE']);
+
+        $user->forceSaveTranslation('en', ['bio'  => 'Bio EN']);
+
+        $this->assertCount(1, User::all());
+        $this->assertCount(2, User::i18nQuery()->get());
+
+        $user->translations()->delete();
+
+        $this->assertCount(1, User::all());
+        $this->assertCount(0, User::i18nQuery()->get());
+
+        $user->forceDelete();
+
+        $this->assertCount(0, User::all());
+        $this->assertCount(0, User::i18nQuery()->get());
     }
 }
