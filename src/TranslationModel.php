@@ -42,7 +42,7 @@ class TranslationModel extends Eloquent
      *
      * @return EloquentBuilder
      */
-    protected function setKeysForSaveQuery(EloquentBuilder $query)
+    protected function setKeysForSaveQuery($query)
     {
         $query->where($this->getKeyName(), '=', $this->getKeyForSaveQuery());
         $query->where($this->localeKey, '=', $this->{$this->localeKey});
