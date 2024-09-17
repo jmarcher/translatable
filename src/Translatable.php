@@ -225,7 +225,7 @@ trait Translatable
      */
     public function fill(array $attributes)
     {
-        if (! isset(static::$i18nAttributes[$this->getTable()])) {
+        if (empty(static::$i18nAttributes[$this->getTable()])) {
             $this->initTranslatableAttributes();
         }
         if (isset($attributes['translations'])) {
