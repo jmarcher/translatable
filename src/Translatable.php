@@ -606,7 +606,7 @@ trait Translatable
      * @param  array|null $except
      * @return \Illuminate\Database\Eloquent\Model
      */
-    public function replicate(array $except = null)
+    public function replicate(?array $except = null)
     {
         $defaults = $this->translatableAttributes();
 
